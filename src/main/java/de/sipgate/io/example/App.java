@@ -21,23 +21,27 @@ public class App {
 	private static String username;
 	private static String password;
 	private static String faxlineId;
+
 	private static final String FAX_NUMBER_PATTERN = "\\+?[0-9]+";
 
-	public static void main(String[] args) throws IOException {
-		Unirest.setObjectMapper(new ResponseMapper());
+	public static void main(String[] args) {
 
-		loadConfiguration();
+		try {
+			loadConfiguration();
+		} catch (IOException e) {
+			System.err.println("Could not load file application.properties");
+			return;
+		}
 
 		if (args.length < 2) {
 			System.err.println("Missing arguments");
-			System.err.println("Please pass the recipient fax number and the file path.");
+			System.err.println("Please pass the recipient faxRequest number and the file path.");
 			return;
 		}
 
 		String recipient = args[0];
-
 		if (!recipient.matches(FAX_NUMBER_PATTERN)) {
-			System.err.println("Invalid recipient fax number");
+			System.err.println("Invalid recipient faxRequest number");
 			return;
 		}
 
@@ -47,59 +51,55 @@ public class App {
 			return;
 		}
 
-		String contentType = Files.probeContentType(pdfFilepath);
-
-		if (contentType == null || !contentType.equals("application/pdf")) {
-			System.err.println("Invalid file type");
+		String encodedPdf;
+		try {
+			encodedPdf = encodePdf(pdfFilepath);
+		} catch (IOException | IllegalArgumentException e) {
+			System.err.println(String.format("Failed to encode file %s: %s", pdfFilepath, e.getMessage()));
 			return;
+		}
+
+		String filename = pdfFilepath.getFileName().toString();
+		FaxRequest faxRequest = new FaxRequest(faxlineId, recipient, filename, encodedPdf);
+
+		Unirest.setObjectMapper(new ResponseMapper());
+
+		String sessionId;
+		try {
+			sessionId = sendFax(faxRequest);
+		} catch (UnirestException e) {
+			System.err.println(String.format("Fax request failed: %s", e.getMessage()));
+			return;
+		}
+
+		String faxStatusType = "";
+		do {
+			try {
+				faxStatusType = pollSendStatus(sessionId);
+				System.out.println(faxStatusType);
+				Thread.sleep(5 * 1000);
+			} catch (InterruptedException | UnirestException e) {
+				e.printStackTrace();
+				return;
+			}
+		} while (!faxStatusType.equals("FAILED") && !faxStatusType.equals("SENT"));
+
+	}
+
+	private static String encodePdf(Path pdfFilepath) throws IOException, IllegalArgumentException {
+		String contentType = Files.probeContentType(pdfFilepath);
+		if (contentType == null || !contentType.equals("application/pdf")) {
+			throw new IllegalArgumentException("Not a valid pdf file");
 		}
 
 		byte[] pdfFileContent = Files.readAllBytes(pdfFilepath);
 		byte[] encodedPdfFileContent = Base64.getEncoder().encode(pdfFileContent);
 
-		String encodedPdf = new String(encodedPdfFileContent);
-
-		String filename = pdfFilepath.getFileName().toString();
-		Fax fax = new Fax(faxlineId, recipient, filename, encodedPdf);
-
-		String sessionId;
-		try {
-			Optional<String> optionalSessionId = sendFax(fax);
-			if (!optionalSessionId.isPresent()) {
-				System.err.println("Could not get session id. Please check HTTP status");
-				return;
-			}
-			sessionId = optionalSessionId.get();
-
-		} catch (UnirestException e) {
-			e.printStackTrace();
-			return;
-		}
-
-		String faxStatusType = "";
-		while (!faxStatusType.equals("FAILED") && !faxStatusType.equals("SENT")) {
-			try {
-				faxStatusType = pollSendStatus(sessionId);
-				System.out.println(faxStatusType);
-			} catch (UnirestException e) {
-				e.printStackTrace();
-			}
-
-			try {
-				Thread.sleep(5 * 1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-
+		return new String(encodedPdfFileContent);
 	}
 
-	private static void loadConfiguration() {
-		try {
-			properties.load(App.class.getClassLoader().getResourceAsStream("application.properties"));
-		} catch (IOException e) {
-			System.err.println("Could not load file application.properties");
-		}
+	private static void loadConfiguration() throws IOException {
+		properties.load(App.class.getClassLoader().getResourceAsStream("application.properties"));
 
 		baseUrl = properties.getProperty("baseUrl");
 		username = properties.getProperty("username");
@@ -107,30 +107,23 @@ public class App {
 		faxlineId = properties.getProperty("faxlineId");
 	}
 
-	private static Optional<String> sendFax(Fax fax) throws UnirestException {
-		RequestBodyEntity faxRequestBodyEntity = Unirest.post(baseUrl + "/sessions/fax")
+	private static String sendFax(FaxRequest faxRequest) throws UnirestException {
+		RequestBodyEntity response = Unirest.post(baseUrl + "/sessions/fax")
 				.basicAuth(username, password)
 				.header("Content-Type", "application/json")
-				.body(fax);
+				.body(faxRequest);
 
-		int httpStatus = faxRequestBodyEntity.asString().getStatus();
-		System.out.println(String.format("HTTP status code: %s", httpStatus));
+		int httpStatus = response.asString()
+				.getStatus();
 
 		if (httpStatus != 200) {
-			return Optional.empty();
+			throw new UnirestException(String.format("Server responded with error code %s", httpStatus));
 		}
 
-		try {
-			FaxResponse faxResponse = faxRequestBodyEntity
-					.asObject(FaxResponse.class)
+		FaxResponse faxResponseBody = response.asObject(FaxResponse.class)
 					.getBody();
 
-			return Optional.of(faxResponse.sessionId);
-		} catch (UnirestException e) {
-			e.printStackTrace();
-		}
-
-		return null;
+		return faxResponseBody.sessionId;
 	}
 
 	private static String pollSendStatus(String sessionId) throws UnirestException {
