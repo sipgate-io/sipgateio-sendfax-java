@@ -1,271 +1,207 @@
 <img src="https://www.sipgatedesign.com/wp-content/uploads/wort-bildmarke_positiv_2x.jpg" alt="sipgate logo" title="sipgate" align="right" height="112" width="200"/>
 
-# sipgate.io Java send fax example
+# sipgate.io Java incoming call example
+This example demonstrates how to receive and process webhooks from [sipgate.io](https://developer.sipgate.io/).
 
-This example demonstrates how to send a fax using the sipgate REST API.
-
-For further information regarding the sipgate REST API please visit https://api.sipgate.com/v2/doc
+For further information regarding the push functionalities of sipgate.io please visit https://developer.sipgate.io/push-api/api-reference/
 
 - [Prerequisites](#Prerequisites)
-- [Configuration](#Configuration)
-- [How To Use](#How-To-Use)
+- [Enabling sipgate.io for your sipgate account](#Enabling-sipgateio-for-your-sipgate-account)
+- [How sipgate.io webhooks work](#How-sipgateio-webhooks-work)
+- [Configure webhooks for sipgate.io](#Configure-webhooks-for-sipgateio)
+- [Making your computer accessible from the internet](#Making-your-computer-accessible-from-the-internet)
+- [Install dependencies:](#Install-dependencies)
+- [Execution](#Execution)
 - [How It Works](#How-It-Works)
-- [Fax Extensions](#Fax-Extensions)
 - [Common Issues](#Common-Issues)
-- [Related](#Related)
 - [Contact Us](#Contact-Us)
 - [License](#License)
-- [External Libraries](#External-Libraries)
-
 
 ## Prerequisites
 - JDK 8
+- Gradle
+
+## Enabling sipgate.io for your sipgate account
+In order to use sipgate.io, you need to book the corresponding package in your sipgate account. The most basic package is the free **sipgate.io S** package.
+
+If you use [sipgate basic](https://app.sipgatebasic.de/feature-store) or [simquadrat](https://app.simquadrat.de/feature-store) you can book packages in your product's feature store.
+If you are a _sipgate team_ user logged in with an admin account you can find the option under **Account Administration**&nbsp;>&nbsp;**Plans & Packages**.
 
 
-## Configuration
-In the [application.properties](./src/resources/application.properties) file located in the project root directory replace `YOUR_SIPGATE_USERNAME`, `YOUR_SIPGATE_PASSWORD`, and `YOUR_SIPGATE_FAXLINE_ID` with the respective values:
+## How sipgate.io webhooks work
 
-```properties
-baseUrl=https://api.sipgate.com/v2
-username=YOUR_SIPGATE_USERNAME
-password=YOUR_SIPGATE_PASSWORD
-faxlineId=YOUR_SIPGATE_FAXLINE_ID
+### What is a webhook?
+A webhook is a POST request that sipgate.io makes to a predefined URL when a certain event occurs.
+These requests contain information about the event that occurred in `application/x-www-form-urlencoded` format. You can find more information on this format in the pertinent documentation.
+
+This is an example payload converted from `application/x-www-form-urlencoded` to json:
+```json
+{
+  "event": "newCall",
+  "direction": "in",
+  "from": "492111234567",
+  "to": "4915791234567",
+  "callId":"12345678",
+  "origCallId":"12345678",
+  "user": [ "Alice" ],
+  "xcid": "123abc456def789",
+  "diversion": "1a2b3d4e5f"
+}
 ```
-The `faxlineId` uniquely identifies the extension from which you wish to send your fax. Further explanation is given in the section [Fax Extensions](#fax-extensions).
 
 
-## How To Use
+### sipgate.io webhook events
+sipgate.io offers webhooks for the following events:
+
+- **newCall:** is triggered when a new incoming or outgoing call occurs 
+- **onAnswer:** is triggered when a call is answered – either by a person or an automatic voicemail
+- **onHangup:** is triggered when a call is hung up
+- **dtmf:** is triggered when a user makes an entry of digits during a call
+
+**Note:** Per default sipgate.io only sends webhooks for **newCall** events.
+To subscribe to other event types you can reply to webhooks with XML responses.
+These responses include the event type you would like to receive webhooks for as well as the URL they should be directed to.
+You can find more information about the XML response here:
+https://developer.sipgate.io/push-api/api-reference/#the-xml-response
+
+
+## Configure webhooks for sipgate.io 
+You can configure webhooks for sipgate.io as follows:
+
+1. Navigate to [console.sipgate.com](https://console.sipgate.com/) and login with your sipgate account credentials.
+2. Select the **Webhooks**&nbsp;>&nbsp;**URLs** tab in the left side menu
+3. Click the gear icon of the **Incoming** or **Outgoing** entry
+4. Fill in your webhook URL and click save. **Note:** your webhook URL has to be accessible from the internet. (See the section [Making your computer accessible from the internet](#making-your-computer-accessible-from-the-internet)) 
+5. In the **sources** section you can select what phonelines and groups should trigger webhooks.
+
+
+## Making your computer accessible from the internet
+There are many possibilities to obtain an externally accessible address for your computer.
+In this example we use the service [serveo.net](serveo.net) which sets up a reverse ssh tunnel that forwards traffic from a public URL to your localhost.
+The following command creates the specified subdomain at serveo.net and sets up a tunnel between the public port 80 on their server and your localhost:8080:
+
+```bash
+$ ssh -R [subdomain].serveo.net:80:localhost:8080 serveo.net
+```
+
+If you run this example on a server which can already be reached from the internet, you do not need the forwarding.
+In that case, the webhook URL needs to be adjusted accordingly.
+
+
+## Execution
+Navigate to the project's root directory.
 
 Run the application:
 
 ```bash
-./gradlew run --args="<RECIPIENT> <PDF_DOCUMENT>"
+./gradlew run
 ```
-**Note:** On Windows use `gradlew.bat` instead of `./gradlew`.
-
-**Note:** Although the API accepts various formats of fax numbers the recommended format for the `RECIPIENT` is the [E.164 standard](https://en.wikipedia.org/wiki/E.164).
-
-
 
 ## How It Works
+On the top level, the code is very simple: 
+```java
+SimpleHttpServer simpleHttpServer = new SimpleHttpServer(8080);
+simpleHttpServer.addPostHandler("/", App::handlePost);
+simpleHttpServer.start();
+```
+A `SimpleHttpServer` is instantiated with a port it will be listening on. The `addPostHandler()` method specifies a function that should be called when the server receives a POST request on the route `"/"`. With that configuration done, all that's left to do is start the server.
 
-In `App.main()` we check that the user provides the recipient phone number and an existing PDF:
+For the sake of simplicity, we will not cover the inner implementation of the `SimpleHttpServer` class. It is simply a wrapper around the `HttpServer` class from `com.sun.net.httpserver` that abstracts the filtering of request methods.
 
+The two arguments of the `addPostHandler()` method are a context string specifying the intended endpoint, and a callback function to be called in the event of a POST request received there. The callback function needs to be of the type `HttpHandler` as specified by an interface from the `httpserver` package. The interface requires a `void` method that takes a single input of type `HttpExchange`.
+
+The `handlePost` function (referenced as `App::handlePost`) implements that interface: it takes the `HttpExchange`, extracts the `application/x-www-form-urlencoded` request body (the webhook content), decodes it, and prints it to the console. Finally, a response is written to the `HttpExchange` to inform the sipgate.io server that the webhook has been received successfully.
 
 ```java
-private static final String FAX_NUMBER_PATTERN = "\\+?[0-9]+";
+InputStream requestBody = httpExchange.getRequestBody();
+OutputStream responseBody = httpExchange.getResponseBody();
+Headers responseHeaders = httpExchange.getResponseHeaders();
+```
 
-public static void main(String[] args) {
-	...
-	if (args.length < 2) {
-		System.err.println("Missing arguments");
-		System.err.println("Please pass the recipient faxRequest number and the file path.");
-		return;
-	}
+The `requestBody` and `responseBody` from the `httpExchange` are an input and an output stream, respectively (i.e. you can _read_ from the former and _write_ to the latter); the `responseHeaders` are a special kind of `Map` that is initially empty. Later on the `"ContentType"` header will be added here.
 
-	String recipient = args[0];
-	if (!recipient.matches(FAX_NUMBER_PATTERN)) {
-		System.err.println("Invalid recipient faxRequest number");
-		return;
-	}
-	
-	Path pdfFilepath = Paths.get(args[1]);
-	if (!Files.exists(pdfFilepath)) {
-		System.err.println(String.format("File does not exist: %s", pdfFilepath));
-		return;
-	}
-	
-	String encodedPdf;
-	try {
-		encodedPdf = encodePdf(pdfFilepath);
-	} catch (IOException | IllegalArgumentException e) {
-		System.err.println(String.format("Failed to encode file %s: %s", pdfFilepath, e.getMessage()));
-		return;
-	}
-	...
+```java
+BufferedReader reader = new BufferedReader(new InputStreamReader(requestBody));
+		String urlEncodedContent = reader.readLine();
+```
+
+In order to output the content of the `requestBody`, it first has to be transferred into a `BufferedReader`. From there, the first line (there should be only one line in the webhook body) is read.
+
+```java
+Map<String, String> keyValuePairs = parseUrlEncodedLine(urlEncodedContent);
+```
+
+Since the content of the webhook is `application/x-www-form-urlencoded` it has to be processed in order to be more readable. This task is handled in the `parseUrlEncodedLine` function:
+
+```java
+private static Map<String, String> parseUrlEncodedLine(String line) throws UnsupportedEncodingException {
+  String[] pairs = line.split("&");
+  Map<String, String> keyValuePairs = new HashMap<>();
+
+  for (String pair : pairs) {
+    String[] fields = pair.split("=");
+    String key = URLDecoder.decode(fields[0], "UTF-8");
+    String value = URLDecoder.decode(fields[1], "UTF-8");
+
+    keyValuePairs.put(key, value);
+  }
+
+  return keyValuePairs;
 }
 ```
 
-After that we ensure that the mime-type of the file is `application/pdf`, read the file contents, and encode it with `Base64`
+The function takes a `application/x-www-form-urlencoded` line and splits it at the `&` character yielding an array of strings, each of which represents a key-value pair. A pair, in turn, contains an `=` character as delimiter and is thus split accordingly. Lastly, both key and value are decoded using the UTF-8 charset and returned in a map.
+
+The resulting map is passed to the `printCallEvent` function which simply prints each pair to the console.
+
+This is also where an XML response would be sent to further interact with sipgate.io, e.g. subscribe to more webhook events. This topic, however, will be covered in a later code example.
 
 ```java
-private static String encodePdf(Path pdfFilepath) throws IOException, IllegalArgumentException {
-	String contentType = Files.probeContentType(pdfFilepath);
-	if (contentType == null || !contentType.equals("application/pdf")) {
-		throw new IllegalArgumentException("Not a valid pdf file");
-	}
-
-	byte[] pdfFileContent = Files.readAllBytes(pdfFilepath);
-	byte[] encodedPdfFileContent = Base64.getEncoder().encode(pdfFileContent);
-
-	return new String(encodedPdfFileContent);
-}
+responseHeaders.set("ContentType", "Application/XML");
+httpExchange.sendResponseHeaders(200, res.length());
 ```
 
-Then we construct a `FaxRequest` object:
+Since sipgate.io expects an XML response, the `"ContentType"` header needs to be set as `"Application/XML"`. To signal everything is OK, the HTTP status is set as `200`.
 
-```java
-String filename = pdfFilepath.getFileName().toString();
-Fax fax = new Fax(faxlineId, recipient, filename, encodedPdf);
-```
-We pass Unirest a `ResponseMapper` for mapping responses in JSON format to Java objects:
-
-```java
-Unirest.setObjectMapper(new ResponseMapper());
-```
-After that, we call our `sendFax` method with the `FaxRequest` object as a parameter. The return value is the `sessionId`, which we will later use to track the sending status.
-
-
-```java
-String sessionId;
-try {
-  sessionId = sendFax(faxRequest);
-} catch (UnirestException e) {
-  System.err.println(String.format("Fax request failed: %s", e.getMessage()));
-  return;
-}
-```
-
-In the `sendFax` method, we define the headers and the request body, which contains the FaxRequest object with `faxlineId`, `recipient`, `filename`, and `base64Content`.
-
-
-We use the _Unirest_ library for request generation and execution. The `post()` method takes as argument the request URL. The headers, authorization header, and request body are set by the `header()`, `basicAuth()` and `body()` method, respectively.
-The request URL consists of the base URL defined above and the endpoint `/sessions/fax`.
-The `basicAuth()` method from the _Unirest_ package takes credentials and generates the required Basic Auth header (for more information on Basic Auth [see our code example](https://github.com/sipgate-io/sipgateio-basicauth-java)).
-
-```java
-private static String sendFax(FaxRequest faxRequest) throws UnirestException {
-	RequestBodyEntity response = Unirest.post(baseUrl + "/sessions/fax")
-	.basicAuth(username, password)
-	.header("Content-Type", "application/json")
-	.body(faxRequest);
-```
-
-Next we check if the `httpStatus` is 200 indicating that the request to send the fax was received successfully.
-
-```java
-int httpStatus = response.asString()
-	.getStatus();
-
-if (httpStatus != 200) {
-	throw new UnirestException(String.format("Server responded with error code %s", httpStatus));
-}
-```
-**Note:** Although the API returns the status 200 it does not mean that the fax was sent, only that it has been queued for sending.
-
-If the request was successful, we map the response to a `FaxResponse` object and return its `sessionId`:
-
-```java
-FaxResponse faxResponseBody = response.asObject(FaxResponse.class)
-					.getBody();
-
-return faxResponseBody.sessionId;
-```
-
-To check the status of the fax, we update the `faxStatusType` in 5 second intervals using our `sessionId`. This process repeats until the `faxStatusType` is either `"SENT"` or `"FAILED"`.
-
-```java
-String faxStatusType = "";
-do {
-	try {
-		faxStatusType = pollSendStatus(sessionId);
-		System.out.println(faxStatusType);
-		Thread.sleep(5 * 1000);
-	} catch (InterruptedException | UnirestException e) {
-		e.printStackTrace();
-		return;
-	}
-} while (!faxStatusType.equals("FAILED") && !faxStatusType.equals("SENT"));
-```
-
-In the `pollSendStatus` function we make a GET request to the `/history/{sessionId}` endpoint which yields the history entry that corresponds to our fax.
-In this case we are only interested in the `faxStatusType`.
-```java
-private static String pollSendStatus(String sessionId) throws UnirestException {
-    JsonNode historyEntryResponse = Unirest.get(baseUrl + "/history/" + sessionId)
-        .basicAuth(username, password)
-        .asJson()
-        .getBody();
-    return historyEntryResponse.getObject().getString("faxStatusType");
-}
-```
-
-The `faxStatusType` can be one of the following values:
-- `PENDING`: The fax was added to the queue for sending, but the sending process has not started yet
-- `SENDING`: The fax is currently being sent
-- `FAILED`: The fax could not be sent
-- `SENT`: The fax was sent successfully
-- `SCHEDULED`: The fax is scheduled for sending at the specified timestamp (it is not `PENDING` because it is not waiting in the queue of faxes to be sent yet)
-
-
-## Fax Extensions
-
-A fax extension consists of the letter `f` followed by a number (e.g. `f0`). The sipgate API uses the concept of fax extensions to identify devices within your account that are enabled to send fax. In this context the term _device_ does not necessarily refer to a hardware fax but rather a virtual representation.
-
-You can find out what your extension is as follows:
-
-1. Log into your [sipgate account](https://app.sipgate.com/w0/connections)
-2. Use the sidebar to navigate to the **Connections** (_Anschlüsse_) tab
-3. Click **Fax** 
-4. The URL of the page should have the form `https://app.sipgate.com/{...}/connections/faxlines/{faxlineId}` where `{faxlineId}` is your fax extension.
-
+Finally, the dummy response is written to the `responseBody` and both streams are closed.
 
 ## Common Issues
 
-### Fax added to the sending queue, but sending failed
+### web app displays "Feature sipgate.io not booked."
+Possible reasons are:
+- the sipgate.io feature is not booked for your account
+
+See the section [Enabling sipgate.io for your sipgate account](#enabling-sipgateio-for-your-sipgate-account) for instruction on how to book sipgate.io
+
+
+### "java.net.BindException: Address already in use"
 
 Possible reasons are:
-
-- PDF file not encoded correctly in base64
-- PDF file with text fields or forms are not supported
-- PDF file is corrupted
-
-### HTTP Errors
-
-| reason                                                                                                                                                | errorcode |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------- | :-------: |
-| bad request (e.g. request body fields are empty or only contain spaces, timestamp is invalid etc.)                                                    |    400    |
-| username and/or password are wrong                                                                                                                    |    401    |
-| your account balance is insufficient                                                                                                                  |    402    |
-| no permission to use specified Fax extension (e.g. Fax feature not booked or user password must be reset in [web app](https://app.sipgate.com/login)) |    403    |
-| wrong REST API endpoint                                                                                                                               |    404    |
-| wrong request method                                                                                                                                  |    405    |
-| invalid recipient fax number                                                                                                                                  |    407    |
-| wrong or missing `Content-Type` header with `application/json`                                                                                        |    415    |
-| internal server error or unhandled bad request                                                                                 |    500    |
+- another instance of the application is running
+- the port configured is used by another application.
 
 
-## Related
+### "java.net.SocketException: Permission denied"
 
-- [Unirest documentation](http://unirest.io/java.html)
-- [Jackson](https://github.com/FasterXML/jackson)
-- [sipgate team FAQ (DE)](https://teamhelp.sipgate.de/hc/de)
-- [sipgate basic FAQ (DE)](https://basicsupport.sipgate.de/hc/de)
+Possible reasons are:
+- you do not have the permission to bind to the specified port. This can happen if you use port 80, 443 or another well-known port which you can only bind to if you run the application with superuser privileges.
+
+
+### Call happened but no webhook was received 
+Possible reasons are:
+- the configured webhook URL is incorrect
+- the SSH tunnel connection broke
+- webhooks are not enabled for the phoneline that received the call
+
 
 ## Contact Us
-
 Please let us know how we can improve this example.
 If you have a specific feature request or found a bug, please use **Issues** or fork this repository and send a **pull request** with your improvements.
 
 
 ## License
-
 This project is licensed under **The Unlicense** (see [LICENSE file](./LICENSE)).
 
-
-## External Libraries
-
-This code uses the following external libraries
-
-- _Unirest_:
-  - Licensed under the [MIT License](https://opensource.org/licenses/MIT)
-  - Website: http://unirest.io/java.html
-
-- _Jackson_:
-  - Licensed under the [Apache-2.0](https://opensource.org/licenses/Apache-2.0)
-  - Website: https://github.com/FasterXML/jackson
-  
 ---
 
 [sipgate.io](https://www.sipgate.io) | [@sipgateio](https://twitter.com/sipgateio) | [API-doc](https://api.sipgate.com/v2/doc)
-
