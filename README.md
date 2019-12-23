@@ -49,7 +49,7 @@ Run the application:
 
 ## How It Works
 
-In `App.main()` we check that the user provides the recipient phone number and an existing PDF:
+In `SendFax.main()` we check that the user provides the recipient phone number and an existing PDF:
 
 
 ```java

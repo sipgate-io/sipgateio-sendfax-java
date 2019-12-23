@@ -1,4 +1,4 @@
-package de.sipgate.io.example;
+package sipgateio.sendfax;
 
 public class FaxResponse {
 	public String sessionId;

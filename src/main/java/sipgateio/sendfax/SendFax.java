@@ -1,4 +1,4 @@
-package de.sipgate.io.example;
+package sipgateio.sendfax;
 
 import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
@@ -13,7 +13,7 @@ import java.util.Base64;
 import java.util.Optional;
 import java.util.Properties;
 
-public class App {
+public class SendFax {
 
 	private static final Properties properties = new Properties();
 
@@ -99,7 +99,7 @@ public class App {
 	}
 
 	private static void loadConfiguration() throws IOException {
-		properties.load(App.class.getClassLoader().getResourceAsStream("application.properties"));
+		properties.load(SendFax.class.getClassLoader().getResourceAsStream("application.properties"));
 
 		baseUrl = properties.getProperty("baseUrl");
 		username = properties.getProperty("username");
