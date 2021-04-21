@@ -6,16 +6,19 @@ This example demonstrates how to send a fax using the sipgate REST API.
 
 For further information regarding the sipgate REST API please visit https://api.sipgate.com/v2/doc
 
-- [Prerequisites](#Prerequisites)
-- [Configuration](#Configuration)
-- [How To Use](#How-To-Use)
-- [How It Works](#How-It-Works)
-- [Fax Extensions](#Fax-Extensions)
-- [Common Issues](#Common-Issues)
-- [Related](#Related)
-- [Contact Us](#Contact-Us)
-- [License](#License)
-- [External Libraries](#External-Libraries)
+- [sipgate.io Java send fax example](#sipgateio-java-send-fax-example)
+	- [Prerequisites](#prerequisites)
+	- [Configuration](#configuration)
+	- [How To Use](#how-to-use)
+	- [How It Works](#how-it-works)
+	- [Fax Extensions](#fax-extensions)
+	- [Common Issues](#common-issues)
+		- [Fax added to the sending queue, but sending failed](#fax-added-to-the-sending-queue-but-sending-failed)
+		- [HTTP Errors](#http-errors)
+	- [Related](#related)
+	- [Contact Us](#contact-us)
+	- [License](#license)
+	- [External Libraries](#external-libraries)
 
 ## Prerequisites
 
@@ -31,6 +34,8 @@ tokenId=YOUR_SIPGATE_TOKEN_ID
 token=YOUR_SIPGATE_TOKEN
 faxlineId=YOUR_SIPGATE_FAXLINE_ID
 ```
+The token should have the `sessions:fax:write` scope.
+For more information about personal access tokens visit our [website.](https://www.sipgate.io/rest-api/authentication#personalAccessToken)
 
 The `faxlineId` uniquely identifies the extension from which you wish to send your fax. Further explanation is given in the section [Fax Extensions](#fax-extensions).
 
