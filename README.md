@@ -17,22 +17,22 @@ For further information regarding the sipgate REST API please visit https://api.
 - [License](#License)
 - [External Libraries](#External-Libraries)
 
-
 ## Prerequisites
+
 - JDK 8
 
-
 ## Configuration
-In the [application.properties](./src/resources/application.properties) file located in the project root directory replace `YOUR_SIPGATE_USERNAME`, `YOUR_SIPGATE_PASSWORD`, and `YOUR_SIPGATE_FAXLINE_ID` with the respective values:
+
+In the [application.properties](./src/resources/application.properties) file located in the project root directory replace `YOUR_SIPGATE_TOKEN_ID`, `YOUR_SIPGATE_TOKEN`, and `YOUR_SIPGATE_FAXLINE_ID` with the respective values:
 
 ```properties
 baseUrl=https://api.sipgate.com/v2
-username=YOUR_SIPGATE_USERNAME
-password=YOUR_SIPGATE_PASSWORD
+tokenId=YOUR_SIPGATE_TOKEN_ID
+token=YOUR_SIPGATE_TOKEN
 faxlineId=YOUR_SIPGATE_FAXLINE_ID
 ```
-The `faxlineId` uniquely identifies the extension from which you wish to send your fax. Further explanation is given in the section [Fax Extensions](#fax-extensions).
 
+The `faxlineId` uniquely identifies the extension from which you wish to send your fax. Further explanation is given in the section [Fax Extensions](#fax-extensions).
 
 ## How To Use
 
@@ -113,8 +113,8 @@ We pass Unirest a `ResponseMapper` for mapping responses in JSON format to Java 
 ```java
 Unirest.setObjectMapper(new ResponseMapper());
 ```
-After that, we call our `sendFax` method with the `FaxRequest` object as a parameter. The return value is the `sessionId`, which we will later use to track the sending status.
 
+After that, we call our `sendFax` method with the `FaxRequest` object as a parameter. The return value is the `sessionId`, which we will later use to track the sending status.
 
 ```java
 String sessionId;
@@ -136,7 +136,7 @@ The `basicAuth()` method from the _Unirest_ package takes credentials and genera
 ```java
 private static String sendFax(FaxRequest faxRequest) throws UnirestException {
 	RequestBodyEntity response = Unirest.post(baseUrl + "/sessions/fax")
-	.basicAuth(username, password)
+	.basicAuth(tokenId, token)
 	.header("Content-Type", "application/json")
 	.body(faxRequest);
 ```
@@ -180,10 +180,11 @@ do {
 
 In the `pollSendStatus` function we make a GET request to the `/history/{sessionId}` endpoint which yields the history entry that corresponds to our fax.
 In this case we are only interested in the `faxStatusType`.
+
 ```java
 private static String pollSendStatus(String sessionId) throws UnirestException {
     JsonNode historyEntryResponse = Unirest.get(baseUrl + "/history/" + sessionId)
-        .basicAuth(username, password)
+        .basicAuth(tokenId, token)
         .asJson()
         .getBody();
     return historyEntryResponse.getObject().getString("faxStatusType");
@@ -225,7 +226,7 @@ Possible reasons are:
 | reason                                                                                                                                                | errorcode |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------- | :-------: |
 | bad request (e.g. request body fields are empty or only contain spaces, timestamp is invalid etc.)                                                    |    400    |
-| username and/or password are wrong                                                                                                                    |    401    |
+| tokenId and/or token are wrong                                                                                                                        |    401    |
 | your account balance is insufficient                                                                                                                  |    402    |
 | no permission to use specified Fax extension (e.g. Fax feature not booked or user password must be reset in [web app](https://app.sipgate.com/login)) |    403    |
 | wrong REST API endpoint                                                                                                                               |    404    |

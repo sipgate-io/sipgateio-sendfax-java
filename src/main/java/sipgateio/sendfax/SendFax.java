@@ -18,8 +18,8 @@ public class SendFax {
 	private static final Properties properties = new Properties();
 
 	private static String baseUrl;
-	private static String username;
-	private static String password;
+	private static String tokenId;
+	private static String token;
 	private static String faxlineId;
 
 	private static final String FAX_NUMBER_PATTERN = "\\+?[0-9]+";
@@ -102,14 +102,14 @@ public class SendFax {
 		properties.load(SendFax.class.getClassLoader().getResourceAsStream("application.properties"));
 
 		baseUrl = properties.getProperty("baseUrl");
-		username = properties.getProperty("username");
-		password = properties.getProperty("password");
+		tokenId = properties.getProperty("tokenId");
+		token = properties.getProperty("token");
 		faxlineId = properties.getProperty("faxlineId");
 	}
 
 	private static String sendFax(FaxRequest faxRequest) throws UnirestException {
 		RequestBodyEntity response = Unirest.post(baseUrl + "/sessions/fax")
-				.basicAuth(username, password)
+				.basicAuth(tokenId, token)
 				.header("Content-Type", "application/json")
 				.body(faxRequest);
 
@@ -128,7 +128,7 @@ public class SendFax {
 
 	private static String pollSendStatus(String sessionId) throws UnirestException {
 		JsonNode historyEntryResponse = Unirest.get(baseUrl + "/history/" + sessionId)
-				.basicAuth(username, password)
+				.basicAuth(tokenId, token)
 				.asJson()
 				.getBody();
 		return historyEntryResponse.getObject().getString("faxStatusType");
