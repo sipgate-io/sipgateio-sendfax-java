@@ -197,12 +197,12 @@ private static String pollSendStatus(String sessionId) throws UnirestException {
 ```
 
 The `faxStatusType` can be one of the following values:
+
 - `PENDING`: The fax was added to the queue for sending, but the sending process has not started yet
 - `SENDING`: The fax is currently being sent
 - `FAILED`: The fax could not be sent
 - `SENT`: The fax was sent successfully
 - `SCHEDULED`: The fax is scheduled for sending at the specified timestamp (it is not `PENDING` because it is not waiting in the queue of faxes to be sent yet)
-
 
 ## Fax Extensions
 
@@ -210,11 +210,11 @@ A fax extension consists of the letter `f` followed by a number (e.g. `f0`). The
 
 You can find out what your extension is as follows:
 
-1. Log into your [sipgate account](https://app.sipgate.com/w0/connections)
-2. Use the sidebar to navigate to the **Connections** (_Anschlüsse_) tab
-3. Click **Fax** 
-4. The URL of the page should have the form `https://app.sipgate.com/{...}/connections/faxlines/{faxlineId}` where `{faxlineId}` is your fax extension.
-
+1. Log into your [sipgate account](https://app.sipgate.com/w0/routing)
+2. Use the sidebar to navigate to the **Routing** (_Telefonie_) tab
+3. Click on any **Fax** device in your routing table
+4. Select any option (gear icon) to open the corresponding menu
+5. The URL of the page should have the form `https://app.sipgate.com/w0/routing/dialog/{option}/{faxlineId}` where `{faxlineId}` is your Fax extension.
 
 ## Common Issues
 
