@@ -1,5 +1,6 @@
 package sipgateio.sendfax;
 
+import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
@@ -108,22 +109,19 @@ public class SendFax {
 	}
 
 	private static String sendFax(FaxRequest faxRequest) throws UnirestException {
-		RequestBodyEntity response = Unirest.post(baseUrl + "/sessions/fax")
+		HttpResponse<FaxResponse> response = Unirest.post(baseUrl + "/sessions/fax")
 				.basicAuth(tokenId, token)
 				.header("Content-Type", "application/json")
-				.body(faxRequest);
+				.body(faxRequest)
+				.asObject(FaxResponse.class);
 
-		int httpStatus = response.asString()
-				.getStatus();
+		int httpStatus = response.getStatus();
 
 		if (httpStatus != 200) {
 			throw new UnirestException(String.format("Server responded with error code %s", httpStatus));
 		}
 
-		FaxResponse faxResponseBody = response.asObject(FaxResponse.class)
-					.getBody();
-
-		return faxResponseBody.sessionId;
+		return response.getBody().sessionId;
 	}
 
 	private static String pollSendStatus(String sessionId) throws UnirestException {
