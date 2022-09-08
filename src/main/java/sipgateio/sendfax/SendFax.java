@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.Properties;
+import io.github.cdimascio.dotenv.Dotenv;
 
 public class SendFax {
 
@@ -100,12 +101,12 @@ public class SendFax {
 	}
 
 	private static void loadConfiguration() throws IOException {
-		properties.load(SendFax.class.getClassLoader().getResourceAsStream("application.properties"));
+		Dotenv dotenv = Dotenv.load();
 
-		baseUrl = properties.getProperty("baseUrl");
-		tokenId = properties.getProperty("tokenId");
-		token = properties.getProperty("token");
-		faxlineId = properties.getProperty("faxlineId");
+		baseUrl = dotenv.get("BASE_URL");
+		tokenId = dotenv.get("TOKEN_ID");
+		token = dotenv.get("TOKEN");
+		faxlineId = dotenv.get("FAXLINE_ID");
 	}
 
 	private static String sendFax(FaxRequest faxRequest) throws UnirestException {

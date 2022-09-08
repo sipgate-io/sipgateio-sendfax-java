@@ -25,19 +25,12 @@ For further information regarding the sipgate REST API please visit https://api.
 - JDK 8
 
 ## Configuration
+Create the `.env` by copying the [`.env.example`](.env.example) and set the values according to the comment above each variable.
 
-In the [application.properties](./src/resources/application.properties) file located in the project root directory replace `YOUR_SIPGATE_TOKEN_ID`, `YOUR_SIPGATE_TOKEN`, and `YOUR_SIPGATE_FAXLINE_ID` with the respective values:
-
-```properties
-baseUrl=https://api.sipgate.com/v2
-tokenId=YOUR_SIPGATE_TOKEN_ID
-token=YOUR_SIPGATE_TOKEN
-faxlineId=YOUR_SIPGATE_FAXLINE_ID
-```
 The token should have the `sessions:fax:write` scope.
 For more information about personal access tokens visit our [website.](https://www.sipgate.io/rest-api/authentication#personalAccessToken)
 
-The `faxlineId` uniquely identifies the extension from which you wish to send your fax. Further explanation is given in the section [Fax Extensions](#fax-extensions).
+The `FAXLINE_ID` uniquely identifies the extension from which you wish to send your fax. Further explanation is given in the section [Fax Extensions](#fax-extensions).
 
 ## How To Use
 
