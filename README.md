@@ -27,7 +27,7 @@ For further information regarding the sipgate REST API please visit https://api.
 ## Configuration
 Create the `.env` by copying the [`.env.example`](.env.example) and set the values according to the comment above each variable.
 
-The token should have the `sessions:fax:write` scope.
+The token must have the `sessions:fax:write` and `history:read` scopes.
 For more information about personal access tokens visit our [website.](https://www.sipgate.io/rest-api/authentication#personalAccessToken)
 
 The `FAXLINE_ID` uniquely identifies the extension from which you wish to send your fax. Further explanation is given in the section [Fax Extensions](#fax-extensions).
