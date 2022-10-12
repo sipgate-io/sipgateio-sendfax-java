@@ -4,25 +4,23 @@ import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
-import com.mashape.unirest.request.body.RequestBodyEntity;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
-import java.util.Optional;
-import java.util.Properties;
+
 import io.github.cdimascio.dotenv.Dotenv;
 
 public class SendFax {
-
-	private static final Properties properties = new Properties();
 
 	private static String baseUrl;
 	private static String tokenId;
 	private static String token;
 	private static String faxlineId;
+	private static String recipient;
+	private static String pdfPath;
 
 	private static final String FAX_NUMBER_PATTERN = "\\+?[0-9]+";
 
@@ -35,19 +33,17 @@ public class SendFax {
 			return;
 		}
 
-		if (args.length < 2) {
-			System.err.println("Missing arguments");
-			System.err.println("Please pass the recipient faxRequest number and the file path.");
-			return;
+		if (args.length >= 2) {
+			recipient = args[0];
+			pdfPath = args[1];
 		}
 
-		String recipient = args[0];
 		if (!recipient.matches(FAX_NUMBER_PATTERN)) {
 			System.err.println("Invalid recipient faxRequest number");
 			return;
 		}
 
-		Path pdfFilepath = Paths.get(args[1]);
+		Path pdfFilepath = Paths.get(pdfPath);
 		if (!Files.exists(pdfFilepath)) {
 			System.err.println(String.format("File does not exist: %s", pdfFilepath));
 			return;
@@ -73,7 +69,6 @@ public class SendFax {
 			System.err.println(String.format("Fax request failed: %s", e.getMessage()));
 			return;
 		}
-
 		String faxStatusType = "";
 		do {
 			try {
@@ -107,6 +102,8 @@ public class SendFax {
 		tokenId = dotenv.get("TOKEN_ID");
 		token = dotenv.get("TOKEN");
 		faxlineId = dotenv.get("FAXLINE_ID");
+		recipient = dotenv.get("RECIPIENT");
+		pdfPath = dotenv.get("PDF_FILE_PATH");
 	}
 
 	private static String sendFax(FaxRequest faxRequest) throws UnirestException {
