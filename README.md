@@ -32,18 +32,18 @@ For more information about personal access tokens visit our [website.](https://w
 
 The `FAXLINE_ID` uniquely identifies the extension from which you wish to send your fax. Further explanation is given in the section [Fax Extensions](#fax-extensions).
 
+Although the API accepts various formats of fax numbers, the recommended format for the `RECIPIENT` is the [E.164 standard](https://en.wikipedia.org/wiki/E.164).
+
+`PDF_FILE_PATH` expects an either relative or absolute file path to your desired PDF file to be sent.
+
 ## How To Use
 
 Run the application:
 
 ```bash
-./gradlew run --args="<RECIPIENT> <PDF_DOCUMENT>"
+./gradlew run
 ```
 **Note:** On Windows use `gradlew.bat` instead of `./gradlew`.
-
-**Note:** Although the API accepts various formats of fax numbers the recommended format for the `RECIPIENT` is the [E.164 standard](https://en.wikipedia.org/wiki/E.164).
-
-
 
 ## How It Works
 
@@ -55,20 +55,13 @@ private static final String FAX_NUMBER_PATTERN = "\\+?[0-9]+";
 
 public static void main(String[] args) {
 	...
-	if (args.length < 2) {
-		System.err.println("Missing arguments");
-		System.err.println("Please pass the recipient faxRequest number and the file path.");
-		return;
-	}
-
-	String recipient = args[0];
 	if (!recipient.matches(FAX_NUMBER_PATTERN)) {
 		System.err.println("Invalid recipient faxRequest number");
 		return;
 	}
-	
-	Path pdfFilepath = Paths.get(args[1]);
-	if (!Files.exists(pdfFilepath)) {
+    
+	Path pdfFilepath = Paths.get(pdfPath);
+		if (!Files.exists(pdfFilepath)) {
 		System.err.println(String.format("File does not exist: %s", pdfFilepath));
 		return;
 	}

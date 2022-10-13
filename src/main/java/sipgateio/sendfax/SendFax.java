@@ -29,13 +29,8 @@ public class SendFax {
 		try {
 			loadConfiguration();
 		} catch (IOException e) {
-			System.err.println("Could not load file application.properties");
+			System.err.println("Could not load .env file");
 			return;
-		}
-
-		if (args.length >= 2) {
-			recipient = args[0];
-			pdfPath = args[1];
 		}
 
 		if (!recipient.matches(FAX_NUMBER_PATTERN)) {
